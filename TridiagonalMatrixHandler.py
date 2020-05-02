@@ -1,11 +1,12 @@
 import numpy as np
 from sympy import *
+import math
 
 from numba import jit, njit
 
 D = 0.5  # Коэффициент миграции
 a = 2.0  # Коэффициент рождения новых людей
-sourceKoeff = 5.0  # количество доступных для жителей ресурсов
+sourceKoeff = 2.0  # Ёмкость среды
 deathKoeff = 1.  # Коэффициент смертность населения
 
 N = 100  # количество точек по оси OX (Площадь занимаемая людьми)
@@ -45,36 +46,40 @@ def thomasAlgorithm(A, d):  # Tridiagonal matrix algorithm . Или метод �
     return x
 
 
+def showAllConstant():
+    print("Коэффициент миграции (D) = " + str(D) + '\tРождения новых людей (a) = ' + str(a) +
+          "\nСмертность населения (σ) = " + str(deathKoeff) + "\tЁмкость среды K = " + str(sourceKoeff))
+    print("Количество точек по ОХ (N) = " + str(N) + "\tКоличество точек по времени (KT) = " + str(KT))
+
+
 @njit
 def solutionMatrixStart():  # заполнение матрицы решений краевыми условиями
     x = np.linspace(x0, L, N)
     u = np.zeros((N, KT))
-    for i in range(0, KT):
-        u[0][i] = 1
-        u[-1][i] = 0
     for i in range(0, N):
-        u[i][0] = 0
+        u[i][0] = math.exp(-(i) ** 2)
         u[i][-1] = 0
     return u, x
 
 
 # @jit(nopython=True)
-def createAndSolveMatrix(sourceFunction):  # заполняем трехдиагональную матрицу Ax=d
+def createAndSolveMatrix(allSourceFraction):  # заполняем трехдиагональную матрицу Ax=d
     u, x = solutionMatrixStart()
     # print(u)
     for i in range(1, KT):
-        A[0, 0] = - 2 * sigma - (a * tau * u[1][i - 1]) / sourceFunction(i, u[1][i - 1]) - deathKoeff * tau - 1
+        A[0, 0] = - 2 * sigma - (a * tau * allSourceFraction(u[1][i - 1], i, u[1][i - 1])) - deathKoeff * tau - 1
         A[0, 1] = sigma
         d[0] = (a * tau + 1) * (-u[1][i - 1]) - sigma * u[0][i]
 
         for j in range(1, N - 3):
             A[j, j - 1] = sigma
-            A[j, j] = - 2 * sigma - (a * tau * u[j + 1][i - 1]) / sourceFunction(i, u[j][i - 1]) - deathKoeff * tau - 1
+            A[j, j] = - 2 * sigma - (
+                    a * tau * allSourceFraction(u[j + 1][i - 1], i, u[j][i - 1])) - deathKoeff * tau - 1
             A[j, j + 1] = sigma
             d[j] = (a * tau + 1) * (-u[j + 1][i - 1])
 
-        A[N - 3, N - 3] = - 2 * sigma - (a * tau * u[N - 2][i - 1]) / sourceFunction(i,
-                                                                                     u[N - 2][i - 1]) - deathKoeff * tau - 1
+        A[N - 3, N - 3] = - 2 * sigma - (
+                a * tau * allSourceFraction(u[N - 2][i - 1], i, u[N - 2][i - 1])) - deathKoeff * tau - 1
         A[N - 3, N - 4] = sigma
         d[N - 3] = (a * tau + 1) * (-u[N - 2][i - 1]) - sigma * u[N - 1][i]
         # print (A,d)
