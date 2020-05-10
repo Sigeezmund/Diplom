@@ -2,28 +2,24 @@ import numpy as np
 from sympy import *
 import math
 
-from numba import jit, njit
+from numba import njit
 
 D = 0.5  # Коэффициент миграции
 a = 2.0  # Коэффициент рождения новых людей
 sourceKoeff = 2.0  # Ёмкость среды
 deathKoeff = 1.  # Коэффициент смертность населения
 
-N = 100  # количество точек по оси OX (Площадь занимаемая людьми)
+N = 10000  # количество точек по оси OX (Площадь занимаемая людьми)
 x0 = 0.  # начало отрезка
 L = 100.  # конец отрезка
 h = (L - x0) / (N - 1)  # шаг по OX
 
-KT = 1000  # количество точек по времени
+KT = 10000  # количество точек по времени
 t0 = 0.  # начальный момент времени
 T = 100.  # конечный момент времени
 tau = (T - t0) / (KT - 1)  # шаг по времени
 
 sigma = tau * D / h ** 2  # sigma - число Куранта
-
-A = np.zeros((N - 2, N - 2))
-d = np.zeros((N - 2))
-
 
 @njit
 def thomasAlgorithm(A, d):  # Tridiagonal matrix algorithm . Или метод прогонки
@@ -62,8 +58,10 @@ def solutionMatrixStart():  # заполнение матрицы решений
     return u, x
 
 
-# @jit(nopython=True)
+@njit
 def createAndSolveMatrix(allSourceFraction):  # заполняем трехдиагональную матрицу Ax=d
+    A = np.zeros((N - 2, N - 2))
+    d = np.zeros((N - 2))
     u, x = solutionMatrixStart()
     # print(u)
     for i in range(1, KT):
