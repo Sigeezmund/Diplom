@@ -1,28 +1,74 @@
 import numpy as np
-from sympy import *
 import math
 
-from numba import jit, njit
+from numba import njit
 
 D = 0.5  # Коэффициент миграции
-a = 2.0  # Коэффициент рождения новых людей
-sourceKoeff = 2.0  # Ёмкость среды
+birthKoeff = 2.0  # Коэффициент рождения новых людей
 deathKoeff = 1.  # Коэффициент смертность населения
 
-N = 100  # количество точек по оси OX (Площадь занимаемая людьми)
-x0 = 0.  # начало отрезка
-L = 100.  # конец отрезка
-h = (L - x0) / (N - 1)  # шаг по OX
+NX = 500  # количество точек по оси OX (Площадь занимаемая людьми)
+x0 = 0  # начало отрезка
+L = 1000  # конец отрезка
+h = (L - x0) / (NX - 1)  # шаг по OX
 
 KT = 1000  # количество точек по времени
-t0 = 0.  # начальный момент времени
-T = 100.  # конечный момент времени
+t0 = 0  # начальный момент времени
+T = 1000  # конечный момент времени
 tau = (T - t0) / (KT - 1)  # шаг по времени
 
 sigma = tau * D / h ** 2  # sigma - число Куранта
 
-A = np.zeros((N - 2, N - 2))
-d = np.zeros((N - 2))
+x = np.linspace(x0, L, NX)
+
+
+def showAllConstant():
+    print("Коэффициент миграции (D) = " + str(D) + '\tРождения новых людей (a) = ' + str(birthKoeff) +
+          "\tСмертность населения (σ) = " + str(deathKoeff))
+    print()
+    print("Количество точек по ОХ (N) = " + str(NX) + "\t\tКоличество точек по времени (KT) = " + str(KT))
+    print("Конец отрезка по OX (L) = " + str(L) + "\t\tКонечный момент (T) = " + str(T))
+    print()
+    print("число Куранта = " + str(sigma) + str('\tСистема устойчивая' if sigma <= 0.5 else '\tСистема не устойчива'))
+
+
+@njit
+def getStartMatrix():  # Заполнение начальной матрицы нулями, и также обозначение начального рассспределения
+    u = np.zeros((NX, KT), dtype=np.float64)
+    for i in range(1, NX):
+        u[i][0] = math.exp(-(i) ** 2)
+    for i in range(0, KT):
+        u[0][i] = 2
+    return u
+
+
+@njit
+def numbaQuad(u):  # высчитывание интеграла как плошадь под криволинейной трапецей
+    inter = 0
+    for j in range(NX):
+        inter = inter + u[j]
+    inter *= h
+    return inter
+
+
+@njit
+def createAndSolveUByYavnayMethods(carryingCapacityFunction):  # Решение с помощью явной схемы
+    u = getStartMatrix()
+    u_0 = np.zeros(NX)
+    for k in range(0, KT - 1):
+        for j in range(NX):
+            ujk = u[j][k]
+            if j == 0:
+                u[j][k + 1] = sigma * (u[j + 1][k] - 2 * ujk) + tau * birthKoeff * ujk * (
+                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+            if j == NX - 1:
+                u[j][k + 1] = sigma * (-2 * ujk + u[j - 1][k]) + tau * birthKoeff * ujk * (
+                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+            else:
+                u[j][k + 1] = sigma * (u[j + 1][k] - 2 * ujk + u[j - 1][k]) + tau * birthKoeff * ujk * (
+                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+            u_0 = u[0:NX, k]
+    return u
 
 
 @njit
@@ -46,43 +92,29 @@ def thomasAlgorithm(A, d):  # Tridiagonal matrix algorithm . Или метод �
     return x
 
 
-def showAllConstant():
-    print("Коэффициент миграции (D) = " + str(D) + '\tРождения новых людей (a) = ' + str(a) +
-          "\nСмертность населения (σ) = " + str(deathKoeff) + "\tЁмкость среды K = " + str(sourceKoeff))
-    print("Количество точек по ОХ (N) = " + str(N) + "\tКоличество точек по времени (KT) = " + str(KT))
-
-
 @njit
-def solutionMatrixStart():  # заполнение матрицы решений краевыми условиями
-    x = np.linspace(x0, L, N)
-    u = np.zeros((N, KT))
-    for i in range(0, N):
-        u[i][0] = math.exp(-(i) ** 2)
-        u[i][-1] = 0
-    return u, x
-
-
-# @jit(nopython=True)
-def createAndSolveMatrix(allSourceFraction):  # заполняем трехдиагональную матрицу Ax=d
-    u, x = solutionMatrixStart()
-    # print(u)
-    for i in range(1, KT):
-        A[0, 0] = - 2 * sigma - (a * tau * allSourceFraction(u[1][i - 1], i, u[1][i - 1])) - deathKoeff * tau - 1
-        A[0, 1] = sigma
-        d[0] = (a * tau + 1) * (-u[1][i - 1]) - sigma * u[0][i]
-
-        for j in range(1, N - 3):
-            A[j, j - 1] = sigma
-            A[j, j] = - 2 * sigma - (
-                    a * tau * allSourceFraction(u[j + 1][i - 1], i, u[j][i - 1])) - deathKoeff * tau - 1
-            A[j, j + 1] = sigma
-            d[j] = (a * tau + 1) * (-u[j + 1][i - 1])
-
-        A[N - 3, N - 3] = - 2 * sigma - (
-                a * tau * allSourceFraction(u[N - 2][i - 1], i, u[N - 2][i - 1])) - deathKoeff * tau - 1
-        A[N - 3, N - 4] = sigma
-        d[N - 3] = (a * tau + 1) * (-u[N - 2][i - 1]) - sigma * u[N - 1][i]
-        # print (A,d)
-        u[1:N - 1, i] = thomasAlgorithm(A, d)
+def createAndSolveUNeYavnayaMethods(carryingCapacityFunction):  # заполняем трехдиагональную матрицу Ax=d
+    A = np.zeros((NX - 2, NX - 2))
+    d = np.zeros((NX - 2))
+    u = getStartMatrix()
+    a = sigma
+    b = lambda ukj: -2 * sigma - (birthKoeff * tau * ukj) / carryingCapacityFunction() - 1 - tau * deathKoeff
+    c = sigma
+    for k in range(1, KT):
+        for j in range(0, NX - 3):
+            if j == 0:
+                A[j][j] = b(u[j + 1][k - 1])
+                A[j][j + 1] = c
+                d[j] = -(birthKoeff * tau + 1) * u[j + 1][k - 1] - sigma * u[j][k - 1]
+            if j == NX - 3:
+                A[j][j + 1] = a
+                A[j][j] = b(u[j][k - 1])
+                d[j] = -(birthKoeff * tau + 1) * u[j][k - 1] - sigma * u[j + 1][k - 1]
+            else:
+                A[j][j - 1] = a
+                A[j][j] = b(u[j][k - 1])
+                A[j][j + 1] = c
+                d[j] = -(birthKoeff * tau + 1) * u[j][k - 1]
+        u[1:NX - 1, k] = thomasAlgorithm(A, d)
         # print(u)
-    return u, x
+    return u
