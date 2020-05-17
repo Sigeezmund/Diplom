@@ -22,7 +22,7 @@ sigma = tau * D / h ** 2  # sigma - число Куранта
 x = np.linspace(x0, L, NX)
 
 
-def showAllConstant():
+def showAllConstant():  # Метод для отображение заданных коэффициентов.
     print("Коэффициент миграции (D) = " + str(D) + '\tРождения новых людей (a) = ' + str(birthKoeff) +
           "\tСмертность населения (σ) = " + str(deathKoeff))
     print()
@@ -32,8 +32,10 @@ def showAllConstant():
     print("число Куранта = " + str(sigma) + str('\tСистема устойчивая' if sigma <= 0.5 else '\tСистема не устойчива'))
 
 
+# Заполнение начальной матрицы нулями и начальными условиями в границах,
+# и также обозначение начального рассспределения
 @njit
-def getStartMatrix():  # Заполнение начальной матрицы нулями, и также обозначение начального рассспределения
+def getStartMatrix():
     u = np.zeros((NX, KT), dtype=np.float64)
     for i in range(1, NX):
         u[i][0] = math.exp(-(i) ** 2)
@@ -42,8 +44,10 @@ def getStartMatrix():  # Заполнение начальной матрицы 
     return u
 
 
+# высчитывание интеграла как плошадь под криволинейной трапецей. Сделанно потому что традиционные способы интегрирования
+# не адаптированны под нумбу
 @njit
-def numbaQuad(u):  # высчитывание интеграла как плошадь под криволинейной трапецей
+def numbaQuad(u):
     inter = 0
     for j in range(NX):
         inter = inter + u[j]
@@ -51,8 +55,9 @@ def numbaQuad(u):  # высчитывание интеграла как плош
     return inter
 
 
+# Решение с помощью явной схемы
 @njit
-def createAndSolveUByYavnayMethods(carryingCapacityFunction):  # Решение с помощью явной схемы
+def createAndSolveUByYavnayMethods(carryingCapacityFunction):
     u = getStartMatrix()
     u_0 = np.zeros(NX)
     for k in range(0, KT - 1):
@@ -60,19 +65,20 @@ def createAndSolveUByYavnayMethods(carryingCapacityFunction):  # Решение 
             ujk = u[j][k]
             if j == 0:
                 u[j][k + 1] = sigma * (u[j + 1][k] - 2 * ujk) + tau * birthKoeff * ujk * (
-                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+                        1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
             if j == NX - 1:
                 u[j][k + 1] = sigma * (-2 * ujk + u[j - 1][k]) + tau * birthKoeff * ujk * (
-                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+                        1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
             else:
                 u[j][k + 1] = sigma * (u[j + 1][k] - 2 * ujk + u[j - 1][k]) + tau * birthKoeff * ujk * (
-                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+                        1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
             u_0 = u[0:NX, k]
     return u
 
 
+# Tridiagonal matrix algorithm . Или метод прогонки
 @njit
-def thomasAlgorithm(A, d):  # Tridiagonal matrix algorithm . Или метод прогонки
+def thomasAlgorithm(A, d):
     n = len(d)
     P = np.zeros(n - 1)
     Q = np.zeros(n - 1)
@@ -92,8 +98,9 @@ def thomasAlgorithm(A, d):  # Tridiagonal matrix algorithm . Или метод �
     return x
 
 
+# заполняем трехдиагональную матрицу Ax=d. Или решение не явной схемой
 @njit
-def createAndSolveUNeYavnayaMethods(carryingCapacityFunction):  # заполняем трехдиагональную матрицу Ax=d
+def createAndSolveUNeYavnayaMethods(carryingCapacityFunction):
     A = np.zeros((NX - 2, NX - 2))
     d = np.zeros((NX - 2))
     u = getStartMatrix()
