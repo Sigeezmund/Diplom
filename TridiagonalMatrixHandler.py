@@ -37,10 +37,8 @@ def showAllConstant():  # Метод для отображение заданн�
 @njit
 def getStartMatrix():
     u = np.zeros((NX, KT), dtype=np.float64)
-    for i in range(1, NX):
+    for i in range(0, NX):
         u[i][0] = math.exp(-(i) ** 2)
-    for i in range(0, KT):
-        u[0][i] = 2
     return u
 
 
