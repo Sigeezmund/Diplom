@@ -3,9 +3,9 @@ import math
 
 from numba import njit
 
-D = 0.04  # Коэффициент миграции
-birthKoeff = 2  # Коэффициент рождения новых людей
-deathKoeff = 1  # Коэффициент смертность населения
+D = 0.01  # Коэффициент миграции
+birthKoeff = 1.5 # Коэффициент рождения новых людей
+deathKoeff = 0.75# Коэффициент смертность населения
 
 NX = 1000  # количество точек по оси OX (Площадь занимаемая людьми)
 x0 = 0  # начало отрезка
@@ -40,7 +40,6 @@ def getStartMatrix():
     u = np.zeros((NX, KT), dtype=np.float64)
     for i in range(0, NX):
         u[i][0] = math.exp(-(i) ** 2)
-    print(u)
     return u
 
 
@@ -125,26 +124,28 @@ def createAndSolveUNeYavnayaMethods(carryingCapacityFunction):
     return u
 
 
-def countSpeed(u):
+def countSpeed(u, t_moment):
     x_coor = int(NX * 2)
-    t_coor = int(KT / 500)
+    t_coor = int(t_moment)
     umax = u.max()
-    accuracy = 0.05
+    accuracy = 0.5
     value = 0
     tau_count = 1
-    while x_coor == NX * 2:
+    while x_coor == NX * 2 and t_coor < KT  :
         for i in range(0, NX - 1):
             if u[i, t_coor] != umax and u[i, t_coor] > umax / 10:
                 x_coor = i
         if x_coor == NX * 2:
             t_coor = t_coor + 1
-
-    while value / tau_count * tau == 0:
-        for i in range(1, NX - 1):
-            if abs(u[x_coor, t_coor] - u[i, t_coor + tau_count]) < accuracy and x[x_coor] != x[i]:
-                accuracy = abs(u[x_coor, t_coor] - u[i, t_coor + tau_count])
-                value = abs(x_coor - x[i])
-        if value / tau_count * tau == 0:
-            tau_count = tau_count + 1
-    speed = value / tau_count * tau
+    if (x_coor != int(NX * 2)):
+        while value / tau_count * tau == 0 and t_coor+tau_count < KT :
+            for i in range(1, NX - 1):
+                if abs(u[x_coor, t_coor] - u[i, t_coor + tau_count]) < accuracy and x[x_coor] != x[i]:
+                    accuracy = abs(u[x_coor, t_coor] - u[i, t_coor + tau_count])
+                    value = abs(x_coor - x[i])
+            if value / tau_count * tau == 0:
+                tau_count = tau_count + 1
+        speed = value / tau_count * tau
+    else :
+        speed = 0
     return speed
