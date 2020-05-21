@@ -3,19 +3,19 @@ import math
 
 from numba import njit
 
-D = 0.5  # Коэффициент миграции
-birthKoeff = 2.0  # Коэффициент рождения новых людей
-deathKoeff = 1.  # Коэффициент смертность населения
+D = 0.04 # Коэффициент миграции
+birthKoeff = 2  # Коэффициент рождения новых людей
+deathKoeff = 1  # Коэффициент смертность населения
 
-NX = 500  # количество точек по оси OX (Площадь занимаемая людьми)
+NX = 1000  # количество точек по оси OX (Площадь занимаемая людьми)
 x0 = 0  # начало отрезка
-L = 1000  # конец отрезка
+L = 100  # конец отрезка
 h = (L - x0) / (NX - 1)  # шаг по OX
 
-KT = 1000  # количество точек по времени
+KT = 10000  # количество точек по времени
 t0 = 0  # начальный момент времени
-T = 1000  # конечный момент времени
-tau = (T - t0) / (KT - 1)  # шаг по времени
+T = 1000 # конечный момент времени
+tau = (T - t0) / (KT)  # шаг по времени
 
 sigma = tau * D / h ** 2  # sigma - число Куранта
 
@@ -39,6 +39,7 @@ def getStartMatrix():
     u = np.zeros((NX, KT), dtype=np.float64)
     for i in range(0, NX):
         u[i][0] = math.exp(-(i) ** 2)
+    print(u)
     return u
 
 
@@ -58,18 +59,17 @@ def numbaQuad(u):
 def createAndSolveUByYavnayMethods(carryingCapacityFunction):
     u = getStartMatrix()
     u_0 = np.zeros(NX)
-    for k in range(0, KT - 1):
-        for j in range(NX):
-            ujk = u[j][k]
-            if j == 0:
-                u[j][k + 1] = sigma * (u[j + 1][k] - 2 * ujk) + tau * birthKoeff * ujk * (
-                        1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
-            if j == NX - 1:
-                u[j][k + 1] = sigma * (-2 * ujk + u[j - 1][k]) + tau * birthKoeff * ujk * (
-                        1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+    for k in range(1, KT):
+        #print(u)
+        for j in range(1,NX):
+            ujk = u[j][k-1]
+            if j == 1:
+                u[0][k] = ujk
+            if j == NX-1:
+                u[NX-1][k] = u[j-1][k-1]
             else:
-                u[j][k + 1] = sigma * (u[j + 1][k] - 2 * ujk + u[j - 1][k]) + tau * birthKoeff * ujk * (
-                        1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
+                u[j][k] = round(sigma * (u[j + 1][k-1] - 2 * ujk + u[j - 1][k-1]) + tau * birthKoeff * ujk * (
+                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk, 2)
             u_0 = u[0:NX, k]
     return u
 
