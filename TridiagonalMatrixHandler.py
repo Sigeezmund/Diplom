@@ -3,7 +3,7 @@ import math
 
 from numba import njit
 
-D = 0.04 # Коэффициент миграции
+D = 0.04  # Коэффициент миграции
 birthKoeff = 2  # Коэффициент рождения новых людей
 deathKoeff = 1  # Коэффициент смертность населения
 
@@ -14,7 +14,7 @@ h = (L - x0) / (NX - 1)  # шаг по OX
 
 KT = 10000  # количество точек по времени
 t0 = 0  # начальный момент времени
-T = 1000 # конечный момент времени
+T = 1000  # конечный момент времени
 tau = (T - t0) / (KT)  # шаг по времени
 
 sigma = tau * D / h ** 2  # sigma - число Куранта
@@ -29,7 +29,8 @@ def showAllConstant():  # Метод для отображение заданн�
     print("\tКоличество точек по ОХ (N) = " + str(NX) + "\tКоличество точек по T (KT) = " + str(KT))
     print("\tКонец отрезка по OX (L) = " + str(L) + "\tКонечный момент (T) = " + str(T))
     print()
-    print("\t\tчисло Куранта = " + str(sigma) + str('\tСистема устойчивая' if sigma <= 0.5 else '\tСистема не устойчива'))
+    print(
+        "\t\tчисло Куранта = " + str(sigma) + str('\tСистема устойчивая' if sigma <= 0.5 else '\tСистема не устойчива'))
 
 
 # Заполнение начальной матрицы нулями и начальными условиями в границах,
@@ -60,16 +61,15 @@ def createAndSolveUByYavnayMethods(carryingCapacityFunction):
     u = getStartMatrix()
     u_0 = np.zeros(NX)
     for k in range(1, KT):
-        #print(u)
-        for j in range(1,NX):
-            ujk = u[j][k-1]
+        for j in range(1, NX):
+            ujk = u[j][k - 1]
             if j == 1:
                 u[0][k] = ujk
-            if j == NX-1:
-                u[NX-1][k] = u[j-1][k-1]
+            if j == NX - 1:
+                u[NX - 1][k] = u[j - 1][k - 1]
             else:
-                u[j][k] = round(sigma * (u[j + 1][k-1] - 2 * ujk + u[j - 1][k-1]) + tau * birthKoeff * ujk * (
-                            1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk, 2)
+                u[j][k] = sigma * (u[j + 1][k - 1] - 2 * ujk + u[j - 1][k - 1]) + tau * birthKoeff * ujk * (
+                        1 - carryingCapacityFunction(ujk, k, u_0)) - tau * deathKoeff * ujk + ujk
             u_0 = u[0:NX, k]
     return u
 
@@ -123,3 +123,28 @@ def createAndSolveUNeYavnayaMethods(carryingCapacityFunction):
         u[1:NX - 1, k] = thomasAlgorithm(A, d)
         # print(u)
     return u
+
+
+def countSpeed(u):
+    x_coor = int(NX * 2)
+    t_coor = int(KT / 500)
+    umax = u.max()
+    accuracy = 0.05
+    value = 0
+    tau_count = 1
+    while x_coor == NX * 2:
+        for i in range(0, NX - 1):
+            if u[i, t_coor] != umax and u[i, t_coor] > umax / 10:
+                x_coor = i
+        if x_coor == NX * 2:
+            t_coor = t_coor + 1
+
+    while value / tau_count * tau == 0:
+        for i in range(1, NX - 1):
+            if abs(u[x_coor, t_coor] - u[i, t_coor + tau_count]) < accuracy and x[x_coor] != x[i]:
+                accuracy = abs(u[x_coor, t_coor] - u[i, t_coor + tau_count])
+                value = abs(x_coor - x[i])
+        if value / tau_count * tau == 0:
+            tau_count = tau_count + 1
+    speed = value / tau_count * tau
+    return speed
