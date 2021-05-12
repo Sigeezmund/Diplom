@@ -1,4 +1,4 @@
-# Diplom
+# Population dynamics with growing carrying capacity
 Work with population density model
 
 This project devoted to population dynamics with growing carrying capacity. This model describes next equation
