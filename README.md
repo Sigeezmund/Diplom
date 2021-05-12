@@ -7,5 +7,5 @@ This project devoted to population dynamics with growing carrying capacity. This
 
 This equation resolved thomasAlgorithm or Tridiagonal matrix algorithm, in  3 different variant for realization of carrying capacity:
 * when C = constant (t_constant)
-* when C = Time-dependent function (C_function)
-* and case global consumption of resources, where K have description by integrall (k_integrall)
+* when C = Time-dependent function (t_function)
+* and case global consumption of resources, where K have description by integrall (t_integrall)
